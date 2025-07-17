@@ -1,0 +1,68 @@
+# utils/gemini_parser.py
+
+import google.generativeai as genai
+
+# ⛳ Set your API key
+genai.configure(api_key="")
+
+# 💡 Use the fastest Gemini model
+model = genai.GenerativeModel("gemini-1.5-flash")
+
+# 🔍 Classify the action: configure, troubleshoot, audit
+def get_action_from_prompt(prompt: str) -> str:
+    try:
+        response = model.generate_content(
+            f"""
+You are a network assistant. Classify the user's request.
+
+Instruction: "{prompt}"
+
+Respond with exactly one of the following lowercase words:
+- configure
+- troubleshoot
+- audit
+
+Only respond with one word. Do not include any extra text, punctuation, or formatting.
+""",
+            generation_config={
+                "temperature": 0.2,
+                "max_output_tokens": 10
+            }
+        )
+
+        action = response.text.strip().lower()
+        if action in {"configure", "troubleshoot", "audit"}:
+            return action
+        else:
+            print("⚠️ Unexpected Gemini output:", response.text)
+            return "unknown"
+
+    except Exception as e:
+        print("❌ Gemini classification error:", e)
+        return "unknown"
+
+# 🔧 Extract CLI config commands
+def extract_config_commands(prompt: str) -> list:
+    try:
+        response = model.generate_content(
+            f"""
+You are a Cisco network assistant. Convert the instruction below into valid Cisco IOS CLI commands.
+
+Instruction: "{prompt}"
+
+Format:
+- Output only CLI commands
+- One command per line
+- No comments, code blocks, or explanations
+
+Example:
+interface loopback10
+ip address 10.10.10.10 255.255.255.0
+no shutdown
+"""
+        )
+
+        return [line.strip() for line in response.text.strip().splitlines() if line.strip()]
+    except Exception as e:
+        print("❌ Gemini config generation error:", e)
+        return []
